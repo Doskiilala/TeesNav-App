@@ -16,37 +16,44 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 
-data class CampusLocation(
-    val name: String,
-    val description: String,
-    val route: String
+data class CampusPlace(
+    val title: String,
+    val details: String,
+    val routeSteps: List<String>
 )
 
-val locations = listOf(
-    CampusLocation(
-        "Library",
-        "Main study area with books, computers and quiet study spaces.",
-        "Route: Main entrance → Student Life Building → Library"
+sealed class AppPage {
+    object Home : AppPage()
+    object Features : AppPage()
+    object About : AppPage()
+    data class PlaceInfo(val place: CampusPlace) : AppPage()
+}
+
+val campusPlaces = listOf(
+    CampusPlace(
+        title = "Library",
+        details = "A quiet learning space with books, computers, and areas for private study.",
+        routeSteps = listOf("Start at Main Entrance", "Walk to Student Life Building", "Continue to Library")
     ),
-    CampusLocation(
-        "Lecture Hall",
-        "Large teaching space used for lectures and seminars.",
-        "Route: Main entrance → Teaching Block → Lecture Hall"
+    CampusPlace(
+        title = "Lecture Hall",
+        details = "A large academic space used for lectures, teaching sessions, and seminars.",
+        routeSteps = listOf("Start at Main Entrance", "Go towards Teaching Block", "Enter Lecture Hall")
     ),
-    CampusLocation(
-        "Cafeteria",
-        "Food and drinks available throughout the day.",
-        "Route: Main entrance → Campus Centre → Cafeteria"
+    CampusPlace(
+        title = "Cafeteria",
+        details = "A campus food area where students and staff can get meals, snacks, and drinks.",
+        routeSteps = listOf("Start at Main Entrance", "Move towards Campus Centre", "Arrive at Cafeteria")
     ),
-    CampusLocation(
-        "Student Support",
-        "Support desk for student advice, wellbeing and academic guidance.",
-        "Route: Main entrance → Student Life Building → Student Support Desk"
+    CampusPlace(
+        title = "Student Support",
+        details = "A help desk for student guidance, wellbeing support, and academic advice.",
+        routeSteps = listOf("Start at Main Entrance", "Go to Student Life Building", "Find Student Support Desk")
     ),
-    CampusLocation(
-        "Computer Lab",
-        "Computer room for coursework, printing and practical sessions.",
-        "Route: Main entrance → Computing Building → Lab 2"
+    CampusPlace(
+        title = "Computer Lab",
+        details = "A practical computer room for coursework, printing, and digital learning tasks.",
+        routeSteps = listOf("Start at Main Entrance", "Walk to Computing Building", "Enter Lab 2")
     )
 )
 
@@ -63,60 +70,54 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun TeesNavApp() {
-    var screen by remember { mutableStateOf("home") }
-    var selectedLocation by remember { mutableStateOf<CampusLocation?>(null) }
+    var currentPage by remember { mutableStateOf<AppPage>(AppPage.Home) }
 
-    when (screen) {
-        "home" -> HomeScreen(
-            onLocationClick = { location ->
-                selectedLocation = location
-                screen = "detail"
+    when (val page = currentPage) {
+        is AppPage.Home -> HomeScreen(
+            places = campusPlaces,
+            onPlaceClick = { selectedPlace ->
+                currentPage = AppPage.PlaceInfo(selectedPlace)
             },
-            onAboutClick = { screen = "about" },
-            onFeaturesClick = { screen = "features" }
-        )
-
-        "detail" -> {
-            val location = selectedLocation
-            if (location != null) {
-                DetailScreen(
-                    location = location,
-                    onBackClick = {
-                        selectedLocation = null
-                        screen = "home"
-                    }
-                )
-            } else {
-                screen = "home"
+            onFeaturesClick = {
+                currentPage = AppPage.Features
+            },
+            onAboutClick = {
+                currentPage = AppPage.About
             }
-        }
-
-        "about" -> AboutScreen(
-            onBackClick = { screen = "home" }
         )
 
-        "features" -> FeaturesScreen(
-            onBackClick = { screen = "home" }
+        is AppPage.PlaceInfo -> PlaceInfoScreen(
+            place = page.place,
+            onBackClick = {
+                currentPage = AppPage.Home
+            }
         )
 
-        else -> {
-            screen = "home"
-        }
+        is AppPage.Features -> FeaturesScreen(
+            onBackClick = {
+                currentPage = AppPage.Home
+            }
+        )
+
+        is AppPage.About -> AboutScreen(
+            onBackClick = {
+                currentPage = AppPage.Home
+            }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onLocationClick: (CampusLocation) -> Unit,
-    onAboutClick: () -> Unit,
-    onFeaturesClick: () -> Unit
+    places: List<CampusPlace>,
+    onPlaceClick: (CampusPlace) -> Unit,
+    onFeaturesClick: () -> Unit,
+    onAboutClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("TeesNav") }
-            )
+            TopAppBar(title = { Text("TeesNav") })
         }
     ) { padding ->
 
@@ -126,7 +127,6 @@ fun HomeScreen(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-
             Text(
                 text = "Smart Campus Navigator",
                 style = MaterialTheme.typography.headlineSmall,
@@ -136,7 +136,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Select a campus destination to view information and a suggested route.",
+                text = "Choose a destination to view details and step-by-step route guidance.",
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -146,15 +146,15 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                items(locations) { location ->
+                items(places) { place ->
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onLocationClick(location) }
+                            .clickable { onPlaceClick(place) }
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = location.name,
+                                text = place.title,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -162,7 +162,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = location.description,
+                                text = place.details,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
@@ -174,7 +174,7 @@ fun HomeScreen(
                 onClick = onFeaturesClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("App Features")
+                Text("View Features")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -191,14 +191,14 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetailScreen(
-    location: CampusLocation,
+fun PlaceInfoScreen(
+    place: CampusPlace,
     onBackClick: () -> Unit
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(location.name) },
+                title = { Text(place.title) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -214,9 +214,8 @@ fun DetailScreen(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-
             Text(
-                text = location.name,
+                text = place.title,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -224,14 +223,14 @@ fun DetailScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = location.description,
+                text = place.details,
                 style = MaterialTheme.typography.bodyLarge
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Suggested Route",
+                text = "Step-by-Step Route",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -241,11 +240,16 @@ fun DetailScreen(
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = location.route,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(16.dp)
-                )
+                Column(modifier = Modifier.padding(16.dp)) {
+                    place.routeSteps.forEachIndexed { index, step ->
+                        Text(
+                            text = "${index + 1}. $step",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -283,18 +287,18 @@ fun FeaturesScreen(onBackClick: () -> Unit) {
                 .fillMaxSize()
         ) {
             Text(
-                text = "Current Prototype Features",
+                text = "Current Features",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("• View key campus locations")
-            Text("• Read location descriptions")
-            Text("• See suggested indoor routes")
-            Text("• Navigate between screens")
-            Text("• Simple mobile-friendly interface")
+            Text("• Browse campus destinations")
+            Text("• View location information")
+            Text("• Follow step-by-step route guidance")
+            Text("• Move between app sections")
+            Text("• Simple mobile-friendly design")
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -306,9 +310,9 @@ fun FeaturesScreen(onBackClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Text("• Interactive map")
-            Text("• Real-time route updates")
-            Text("• Accessibility-friendly route options")
+            Text("• Interactive campus map")
+            Text("• Live route updates")
+            Text("• Accessibility-friendly routes")
             Text("• Reinforcement learning route optimisation")
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -329,7 +333,7 @@ fun AboutScreen(onBackClick: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About") },
+                title = { Text("About TeesNav") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -345,7 +349,6 @@ fun AboutScreen(onBackClick: () -> Unit) {
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-
             Text(
                 text = "About TeesNav",
                 style = MaterialTheme.typography.headlineSmall,
@@ -355,14 +358,14 @@ fun AboutScreen(onBackClick: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "TeesNav is a smart campus navigation prototype designed to help students, staff and visitors find important campus locations more easily.",
+                text = "TeesNav is a smart campus navigation prototype designed to help students, staff, and visitors find important campus locations more easily.",
                 style = MaterialTheme.typography.bodyLarge
             )
 
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "This prototype demonstrates basic navigation, destination selection and route suggestion features for a mobile campus navigation app.",
+                text = "This version demonstrates destination selection, location details, and step-by-step route guidance for a mobile campus navigation app.",
                 style = MaterialTheme.typography.bodyMedium
             )
 
@@ -380,7 +383,7 @@ fun AboutScreen(onBackClick: () -> Unit) {
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewApp() {
+fun PreviewTeesNavApp() {
     MaterialTheme {
         TeesNavApp()
     }
